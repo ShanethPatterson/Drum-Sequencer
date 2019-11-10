@@ -110,19 +110,23 @@ private:
     Adafruit_NeoTrellis trellisArray[matrixHeight / 4][matrixWidth / 4] = {{Adafruit_NeoTrellis(0x2E), Adafruit_NeoTrellis(0x2F)}};
 
 public:
-    int8_t page, bank, selTrack;
+    static int8_t page, bank, selTrack;
     int8_t numPixels = width * height;
     static Adafruit_MultiTrellis trellis;
+
     Matrix()
     {
         width = matrixWidth;
         height = matrixHeight;
         Adafruit_NeoTrellis trellisArray[height / 4][width / 4] = {{Adafruit_NeoTrellis(0x2E), Adafruit_NeoTrellis(0x2F)}};
         Adafruit_MultiTrellis trellis((Adafruit_NeoTrellis *)trellisArray, width / 4, height / 4);
-        for (int i = 0; i < numPixels; i++)
+        for (int8_t y = bank * height; y < (bank * height) + height; y++)
         {
-            trellis.activateKey(i, SEESAW_KEYPAD_EDGE_FALLING, true);
-            trellis.registerCallback(i, keyPressed);
+            for (int8_t x = page * width; x < (page * width) + width; x++)
+            {
+                trellis.activateKey(x, y, SEESAW_KEYPAD_EDGE_FALLING, true);
+                trellis.registerCallback(x, y, Matrix::tkeyPressed);
+            }
         }
     }
     void show()
@@ -168,9 +172,9 @@ public:
             page = step / width;
         }
 
-        for (int8_t y = 0; y < height; y++)
+        for (int8_t y = bank * height; y < (bank * height) + height; y++)
         {
-            for (int8_t x = page; x < page + 8; x++)
+            for (int8_t x = page * width; x < (page * width) + width; x++)
             {
                 { //selection stuff
                     if (dispTracks[y].noteSelected(x))
@@ -194,7 +198,7 @@ public:
                         {
                             blueVal = selTrackBlueOffset; //defined wayyy up there in the constants
                         }
-                        trellis.setPixelColor(x, y, seesaw_NeoPixel::Color(dispTracks[y].getNote(x) * 2, 255 - dispTracks[y].getNote(x) * 2, 0)); //velocity will bring it from green up to red
+                        trellis.setPixelColor(x, y, seesaw_NeoPixel::Color(dispTracks[y].getNote(x) * 2, 255 - dispTracks[y].getNote(x) * 2, blueVal)); //velocity will bring it from green up to red
                     }
                     else if (selTrack % height == y)
                     {
@@ -204,13 +208,14 @@ public:
             }
         }
     }
-    TrellisCallback keyPressed(keyEvent e)
+    static TrellisCallback tkeyPressed(keyEvent e)
     {
         int x = e.bit.NUM % width;
         int y = e.bit.NUM / width;
         //i really hope this works
-        selTrack = (bank * 4) + y;
+        selTrack = (bank * height) + y;
         tracks[selTrack].toggleNoteOn((page * width) + x);
+        return 0;
     }
 };
 Matrix matrix = Matrix();
