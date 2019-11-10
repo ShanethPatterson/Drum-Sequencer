@@ -34,18 +34,23 @@ const int chLeds[4] = {33, 34, 35, 36};
 //--------------------------------------------------------------------------------------------------------------------------
 //Classes
 class Track
+{
+
+}
 
 class Matrix
 {
 private:
     static int width, height;
     Adafruit_NeoTrellis trellisArray[matrixHeight / 4][matrixWidth / 4] = {{Adafruit_NeoTrellis(0x2E), Adafruit_NeoTrellis(0x2F)}};
+
 public:
     int numPixels = width * height;
     static Adafruit_MultiTrellis trellis;
-    Matrix() {
-        width=matrixWidth;
-        height=matrixHeight;
+    Matrix()
+    {
+        width = matrixWidth;
+        height = matrixHeight;
         Adafruit_NeoTrellis trellisArray[height / 4][width / 4] = {{Adafruit_NeoTrellis(0x2E), Adafruit_NeoTrellis(0x2F)}};
         Adafruit_MultiTrellis trellis((Adafruit_NeoTrellis *)trellisArray, width / 4, height / 4);
     }
@@ -53,8 +58,8 @@ public:
     {
         trellis.show();
     }
-    void process(){
-
+    void process()
+    {
     }
 };
 
@@ -69,7 +74,7 @@ void setup()
     Serial.begin(9600);
     delay(500);
     Serial.println("Serial OK!");
-    
+
     if (!matrix.trellis.begin())
     {
         Serial.println("Critical: Matrix Failed to Initialize!!");
@@ -88,5 +93,3 @@ void setup()
 void loop()
 {
 }
-
-
