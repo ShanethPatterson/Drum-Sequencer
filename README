@@ -1,0 +1,12 @@
+#Drum Seq
+##A feature rich arduino drum sequencer running on a Teensy 3.5
+
+Still in planning stages. Tentatively, the drum sequencer will act strictly as a midi controller (although an internal audio mode is not off the table completely).
+The sequencer is controlled by a 4 tall x 8 wide matrix of RGB Leds with buttons reffered to as a NeoTrellis.
+There will be 16 "tracks" which can broadcast any midi note on any midi channel over USBMidi.
+
+Project Planning:
+https://l.shaneth.com/drumseqplan
+
+Shane Patterson
+shaneth.com
