@@ -10,9 +10,9 @@
 //--------------------------------------------------------------------------------------------------------------------------
 // Libraries
 #include <Adafruit_NeoTrellis.h>
-#include <Arduino.h>
-#include <algorithm>
-#include <vector>
+//#include <Arduino.h>
+//#include <algorithm>
+//#include <vector>
 
 //--------------------------------------------------------------------------------------------------------------------------
 // Enviornment Constants
@@ -89,129 +89,133 @@ class Track {
 int8_t Track::numTracks = 0;
 Track tracks[16] = Track();
 
-class Matrix {
-   private:
-    static int8_t width, height, lastBlinkTime;
-    Adafruit_NeoTrellis trellisArray[matrixHeight / 4][matrixWidth / 4] = {
-        {Adafruit_NeoTrellis(0x2E), Adafruit_NeoTrellis(0x2F)}};
+//--------------------------------------------------------------------------------------------------------------------------
+// Trellis
 
-   public:
-    static int8_t page, bank, selTrack;
-    int8_t numPixels = width * height;
-    static Adafruit_MultiTrellis trellis;
-
-    Matrix() {
-        width = matrixWidth;
-        height = matrixHeight;
-        Adafruit_NeoTrellis trellisArray[height / 4][width / 4] = {
-            {Adafruit_NeoTrellis(0x2E), Adafruit_NeoTrellis(0x2F)}};
-        Adafruit_MultiTrellis trellis((Adafruit_NeoTrellis *)trellisArray,
-                                      width / 4, height / 4);
-        for (int8_t y = bank * height; y < (bank * height) + height; y++) {
-            for (int8_t x = page * width; x < (page * width) + width; x++) {
-                trellis.activateKey(x, y, SEESAW_KEYPAD_EDGE_FALLING, true);
-                trellis.registerCallback(x, y, Matrix::tkeyPressed);
-            }
+Adafruit_NeoTrellis trellisArray[matrixHeight / 4][matrixWidth / 4] = {
+    {Adafruit_NeoTrellis(0x2E), Adafruit_NeoTrellis(0x2F)}};
+Adafruit_MultiTrellis trellis((Adafruit_NeoTrellis *)trellisArray,
+                              (matrixWidth / 4), (matrixHeight / 4));
+TrellisCallback tkeyPressed(keyEvent e);
+int8_t lastBlinkTime, page, bank, selTrack;
+const int8_t numPixels = matrixWidth * matrixHeight;
+void setupMatrix() {
+    for (int8_t y = 0; y < matrixHeight; y++) {
+        for (int8_t x = 0; x < matrixWidth; x++) {
+            trellis.activateKey(x, y, SEESAW_KEYPAD_EDGE_FALLING, true);
+            trellis.registerCallback(x, y, tkeyPressed);
         }
     }
-    void show() { trellis.show(); }
-    void process() { drawMatrix(); }
-    void bankUp() {
-        if (bank !=
-            height - 1) {  //-1 because 0 indexing destroys my brain and life
-            selTrack += height;
-        } else {
-            selTrack = 0;
-        }
+}
+void bankUp() {
+    if (bank !=
+        matrixHeight - 1) {  //-1 because 0 indexing destroys my brain and life
+        selTrack += matrixHeight;
+    } else {
+        selTrack = 0;
     }
-    void bankDown() {
-        if (bank != 0) {
-            selTrack -= height;
-        } else {
-            selTrack = tracks[0].numTracks;
-        }
+}
+void bankDown() {
+    if (bank != 0) {
+        selTrack -= matrixHeight;
+    } else {
+        selTrack = tracks[0].numTracks;
     }
-    void drawMatrix() {
-        // figure out bank before page, since loading 16 track objects is
-        // significantly slower than loading 4 for the future operations
-        bank = selTrack / height;
-        int8_t bankOffset = bank * height;
-        Track dispTracks[height] = {
-            tracks[bankOffset], tracks[bankOffset + 1], tracks[bankOffset + 2],
-            tracks[bankOffset + 3]};  // TODO: change to using pointers so that
-                                      // future operations are super quick
+}
+void drawMatrix() {
+    // figure out bank before page, since loading 16 track objects is
+    // significantly slower than loading 4 for the future operations
+    bank = selTrack / matrixHeight;
+    int8_t bankOffset = bank * matrixHeight;
+    Track dispTracks[matrixHeight] = {
+        tracks[bankOffset], tracks[bankOffset + 1], tracks[bankOffset + 2],
+        tracks[bankOffset + 3]};  // TODO: change to using pointers so that
+                                  // future operations are super quick
 
-        // figure out page
-        if (step > width) {
-            page = step / width;
-        }
+    // figure out page
+    if (step > matrixWidth) {
+        page = step / matrixWidth;
+    }
 
-        for (int8_t y = bank * height; y < (bank * height) + height; y++) {
-            for (int8_t x = page * width; x < (page * width) + width; x++) {
-                {  // selection stuff
-                    if (dispTracks[y].noteSelected(x)) {
-                        if ((millis() / selBlinkTime) % 2 == 0) {
-                            // turn cell off to blink
-                            trellis.setPixelColor(x, y, 0x000000);
-                            break;  // we're done... for now
-                            // if this doesn't work (I don't have all my parts
-                            // while writing this and it is 4 am so I'm not sure
-                            // what I'm doing anyways), use x++ instead to
-                            // effetively break this loop but cause some funky
-                            // things to happen with consecutive selected notes
-                            // or use a flag for when the note is off
-                        }
+    for (int8_t y = bank * matrixHeight;
+         y < (bank * matrixHeight) + matrixHeight; y++) {
+        for (int8_t x = page * matrixWidth;
+             x < (page * matrixWidth) + matrixWidth; x++) {
+            {  // selection stuff
+                if (dispTracks[y].noteSelected(x)) {
+                    if ((millis() / selBlinkTime) % 2 == 0) {
+                        // turn cell off to blink
+                        trellis.setPixelColor(x, y, 0x000000);
+                        break;  // we're done... for now
+                        // if this doesn't work (I don't have all my parts
+                        // while writing this and it is 4 am so I'm not sure
+                        // what I'm doing anyways), use x++ instead to
+                        // effetively break this loop but cause some funky
+                        // things to happen with consecutive selected notes
+                        // or use a flag for when the note is off
                     }
-                }  // end selection stuff
-                {  // actually draw the cell otherwise
-                    if (dispTracks[y].getNote(x) != 0) {
-                        int8_t blueVal = 0;
-                        if (selTrack % height == y) {
-                            blueVal =
-                                selTrackBlueOffset;  // defined wayyy up there
-                                                     // in the constants
-                        }
-                        trellis.setPixelColor(
-                            x, y,
-                            seesaw_NeoPixel::Color(
-                                dispTracks[y].getNote(x) * 2,
-                                255 - dispTracks[y].getNote(x) * 2,
-                                blueVal));  // velocity will bring it from green
-                                            // up to red
-                    } else if (selTrack % height == y) {
-                        trellis.setPixelColor(x, y, selTrackOffColor);
+                }
+            }  // end selection stuff
+            {  // actually draw the cell otherwise
+                if (dispTracks[y].getNote(x) != 0) {
+                    int8_t blueVal = 0;
+                    if (selTrack % matrixHeight == y) {
+                        blueVal = selTrackBlueOffset;  // defined wayyy up there
+                                                       // in the constants
                     }
+                    trellis.setPixelColor(
+                        x, y,
+                        seesaw_NeoPixel::Color(
+                            dispTracks[y].getNote(x) * 2,
+                            255 - dispTracks[y].getNote(x) * 2,
+                            blueVal));  // velocity will bring it from green
+                                        // up to red
+                } else if (selTrack % matrixHeight == y) {
+                    trellis.setPixelColor(x, y, selTrackOffColor);
                 }
             }
         }
     }
-    static TrellisCallback tkeyPressed(keyEvent e) {
-        int x = e.bit.NUM % width;
-        int y = e.bit.NUM / width;
-        // i really hope this works
-        selTrack = (bank * height) + y;
-        tracks[selTrack].toggleNoteOn((page * width) + x);
-        return 0;
-    }
-};
-Matrix matrix = Matrix();
+}
+TrellisCallback tkeyPressed(keyEvent e) {
+    int x = e.bit.NUM % matrixHeight;
+    int y = e.bit.NUM / matrixHeight;
+    // i really hope this works
+    selTrack = (bank * matrixHeight) + y;
+    tracks[selTrack].toggleNoteOn((page * matrixWidth) + x);
+    return 0;
+}
+void processMatrix() { drawMatrix(); }
+// end trellis/matrix
 
 //--------------------------------------------------------------------------------------------------------------------------
 // Setup
 void setup() {
     pinMode(13, OUTPUT);
     Serial.begin(9600);
+    digitalWrite(13, HIGH);
     delay(500);
     Serial.println("Serial OK!");
-
-    if (!matrix.trellis.begin()) {
+    // setupMatrix();
+    if (!trellis.begin()) {
         Serial.println("Critical: Matrix Failed to Initialize!!");
     }
-    // make sure matrix is working properly
-    for (int i = 0; i < matrix.numPixels; i++) {
-        matrix.trellis.setPixelColor(i, 0x000000);
-        matrix.trellis.show();
-        delay(50);
+    // make sure trellis is working properly
+    for (int i = 0; i < numPixels; i++) {
+        trellis.setPixelColor(i, 0x000000);
+        trellis.show();
+    }
+    for (int i = 0; i < numPixels; i++) {
+        digitalWrite(13, LOW);
+        trellis.setPixelColor(i, 0xAA00FF);
+        trellis.show();
+        delay(75);
+    }
+    int okmsg[20] = {0,  1,  2,  3,  6,  7,  8,  11, 12, 13,
+                     16, 19, 20, 21, 24, 25, 26, 27, 30, 31};
+    for (int i = 0; i < 20; i++) {
+        trellis.setPixelColor(okmsg[i], 0xFFFFFF);
+        trellis.show();
     }
 }
 
