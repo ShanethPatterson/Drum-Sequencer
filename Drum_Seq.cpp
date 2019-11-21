@@ -174,7 +174,7 @@ void bankUp() {
     }
 }
 void bankDown() {
-    if (bank != 0) {
+    if (bank != 1) {
         selTrack -= matrixHeight;
     } else {
         selTrack = tracks[0].numTracks;
@@ -302,7 +302,10 @@ void controls() {
             digitalWrite(bankLeds[i], LOW);
         }
     }
-    Bank Changing if (chUp.pressed()) { bankUp(); }
+    // Bank Changing
+    if (chUp.pressed()) {
+        bankUp();
+    }
     if (chDn.pressed()) {
         bankDown();
     }
@@ -347,12 +350,12 @@ void setup() {
 
     if (!trellis.begin()) {
         Serial.println("Critical: Matrix Failed to Initialize!!");
-        while (true) {
-            digitalWrite(13, LOW);
-            delay(100);
-            digitalWrite(13, HIGH);
-            delay(100);
-        }
+        // while (true) {
+        //     digitalWrite(13, LOW);
+        //     delay(100);
+        //     digitalWrite(13, HIGH);
+        //     delay(100);
+        // }
     }
     // make sure trellis is working properly by displaying a little
     // animatino
