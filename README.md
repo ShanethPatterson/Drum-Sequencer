@@ -8,24 +8,24 @@ There are 16 "tracks" which can broadcast any midi note on any midi channel over
 
 ### WORKING:
 
-- [x]16 steps
-- [x]all 16 tracks with the two buttons to bank up or down (with bounds checking of course)
-- [x]Velocity control
-- [x]Note toggling and selection
-- [x]MIDI output
-- [x]Page change buttons
-- [x]Run/Stop Switch
-- [x]GM Mapping
-- [x]EEPROM that _automatically_ saves changes _as they are made_.
-- [x]Option to load from EEPROM at startup. See TODO->
-- [x]Weird upside-down y axis hacks since I didn't think that NeoPixel counts row 0 as the top row, but I want the lowest midi notes on the bottom.
+- [x] 16 steps
+- [x] all 16 tracks with the two buttons to bank up or down (with bounds checking of course)
+- [x] Velocity control
+- [x] Note toggling and selection
+- [x] MIDI output
+- [x] Page change buttons
+- [x] Run/Stop Switch
+- [x] GM Mapping
+- [x] EEPROM that _automatically_ saves changes _as they are made_.
+- [x] Option to load from EEPROM at startup. See TODO->
+- [x] Weird upside-down y axis hacks since I didn't think that NeoPixel counts row 0 as the top row, but I want the lowest midi notes on the bottom.
 
 ### Todo:
 
-- []EEPROM clear confirmation: make whole array flash red and user must press left/down again to clear EEPROM, otherwise cancel clear and load.
-  - []Make Midi DAW Sync Work.
-  - []Invent some way of changing project length, tempo, and time signature. Consider adding buttons and doing something fancy with the trellis array.
-  - []For project length, could just light up a number of the trellis pixels where 1 pixel/step giving us 1-32 steps. Time signature could be represented the same way. Tempo may require some other control. +/- buttons?
+- [] EEPROM clear confirmation: make whole array flash red and user must press left/down again to clear EEPROM, otherwise cancel clear and load.
+  - [] Make Midi DAW Sync Work.
+  - [] Invent some way of changing project length, tempo, and time signature. Consider adding buttons and doing something fancy with the trellis array.
+  - [] For project length, could just light up a number of the trellis pixels where 1 pixel/step giving us 1-32 steps. Time signature could be represented the same way. Tempo may require some other control. +/- buttons?
 - [] Audio mode!
 
 **Shane Patterson**
