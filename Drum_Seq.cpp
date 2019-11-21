@@ -15,7 +15,7 @@
 //#include <vector>
 
 //--------------------------------------------------------------------------------------------------------------------------
-// Enviornment Constants
+// Constants
 #define MAXLENGTH \
     64  // only god knows what will actually happen if this variable changes.
         // Leaving it at 64 for now.
@@ -29,21 +29,27 @@
 #define display 0
 
 // Channel Selection
-const int chLeds[4] = {33, 34, 35, 36};
-#define chUpBtn 0
-#define chDnBtn 0
+const int bankLeds[4] = {2, 3, 4, 5};
+#define chUpBtn 34
+#define chDnBtn 35
+
+// Controls
+#define POT 33
+#define SWITCH 32
 
 // Matrix
 #define matrixHeight 4
 #define matrixWidth 8
 #define selBlinkTime 200
-#define selTrackBlueOffset 127
-#define selTrackOffColor 0x0000AA
+#define selTrackBlueOffset 10
+#define selTrackOffColor 0x000020
 
 //--------------------------------------------------------------------------------------------------------------------------
 // Global Variables
-int step = 0;
-
+unsigned int step = 0;
+bool run = false;
+unsigned int tempo = 120;
+unsigned int projectLength = 16;
 //--------------------------------------------------------------------------------------------------------------------------
 // Classes
 class Track {
@@ -60,7 +66,7 @@ class Track {
         id = numTracks;
         numTracks++;  // static values ftw for ID'ing all these tracks and
                       // setting pitches automatically
-        pitch = 36 + 16 - id;  // to follow GM mapping chromatically
+        pitch = 36 + 30 - (id * 2);  // to follow GM drum mapping
         channel = 1;
     }
     int getNote(int n) { return abs(notes[n]); }
@@ -69,13 +75,15 @@ class Track {
     bool noteSelected() { return (notes[step] < 0); }
     void selectNote(int n) {
         if (notes[n] > 0) {
-            notes[n] = -notes[n];
+            notes[n] = 0 - notes[n];
         }
     }
     void toggleNoteSel(int n) { notes[n] = -notes[n]; }
     void toggleNoteOn(int n) {
         if (notes[n] == 0) {
             notes[n] = STARTINGVELOCITY;
+        } else {
+            notes[n] = 0;
         }
     }
     void deselectAllNotes() {
@@ -88,6 +96,63 @@ class Track {
 };
 int8_t Track::numTracks = 0;
 Track tracks[16] = Track();
+void deselectAllNotesGlobal() {
+    for (int i = 0; i < 16; i++) {
+        tracks[i].deselectAllNotes();
+    }
+}
+
+class ShaneButton {
+   private:
+    int pin;
+
+   public:
+    bool state;
+    bool toggleState;
+    ShaneButton() {}
+    ShaneButton(int ipin) {
+        pinMode(ipin, INPUT);
+        pin = ipin;
+        state = 0;
+        toggleState = false;
+    }
+    bool stateChanged() {
+        bool current = digitalRead(pin);
+        if (current != state) {
+            // state changed
+            state = current;
+            delay(10);
+            return true;
+        }
+        return false;
+    }
+    bool pressed() {
+        bool current = digitalRead(pin);
+        if (current != state) {
+            // state changed
+            state = current;
+            delay(10);
+            return state;
+        }
+        return false;
+    }
+    bool updateState() {
+        bool current = digitalRead(pin);
+        if (current != state) {
+            // state changed
+            state = current;
+            if (state == 1) {
+                toggleState = !toggleState;
+            }
+            delay(10);
+        }
+        return state;
+    }
+    bool getToggleState() {
+        updateState();
+        return toggleState;
+    }
+};
 
 //--------------------------------------------------------------------------------------------------------------------------
 // Trellis
@@ -95,18 +160,11 @@ Track tracks[16] = Track();
 Adafruit_NeoTrellis trellisArray[matrixHeight / 4][matrixWidth / 4] = {
     {Adafruit_NeoTrellis(0x2E), Adafruit_NeoTrellis(0x2F)}};
 Adafruit_MultiTrellis trellis((Adafruit_NeoTrellis *)trellisArray,
-                              (matrixWidth / 4), (matrixHeight / 4));
+                              (matrixHeight / 4), (matrixWidth / 4));
 TrellisCallback tkeyPressed(keyEvent e);
-int8_t lastBlinkTime, page, bank, selTrack;
+int8_t lastBlinkTime, page, bank, selTrack = 15, selNote;
 const int8_t numPixels = matrixWidth * matrixHeight;
-void setupMatrix() {
-    for (int8_t y = 0; y < matrixHeight; y++) {
-        for (int8_t x = 0; x < matrixWidth; x++) {
-            trellis.activateKey(x, y, SEESAW_KEYPAD_EDGE_FALLING, true);
-            trellis.registerCallback(x, y, tkeyPressed);
-        }
-    }
-}
+
 void bankUp() {
     if (bank !=
         matrixHeight - 1) {  //-1 because 0 indexing destroys my brain and life
@@ -137,26 +195,13 @@ void drawMatrix() {
         page = step / matrixWidth;
     }
 
-    for (int8_t y = bank * matrixHeight;
-         y < (bank * matrixHeight) + matrixHeight; y++) {
+    for (int8_t y = 0; y < matrixHeight; y++) {
         for (int8_t x = page * matrixWidth;
              x < (page * matrixWidth) + matrixWidth; x++) {
-            {  // selection stuff
-                if (dispTracks[y].noteSelected(x)) {
-                    if ((millis() / selBlinkTime) % 2 == 0) {
-                        // turn cell off to blink
-                        trellis.setPixelColor(x, y, 0x000000);
-                        break;  // we're done... for now
-                        // if this doesn't work (I don't have all my parts
-                        // while writing this and it is 4 am so I'm not sure
-                        // what I'm doing anyways), use x++ instead to
-                        // effetively break this loop but cause some funky
-                        // things to happen with consecutive selected notes
-                        // or use a flag for when the note is off
-                    }
-                }
-            }  // end selection stuff
-            {  // actually draw the cell otherwise
+            // start by turning cell off
+            trellis.setPixelColor(x, y, 0x000000);
+
+            {  // drawing cell
                 if (dispTracks[y].getNote(x) != 0) {
                     int8_t blueVal = 0;
                     if (selTrack % matrixHeight == y) {
@@ -174,33 +219,144 @@ void drawMatrix() {
                     trellis.setPixelColor(x, y, selTrackOffColor);
                 }
             }
+            {  // selection stuff
+                if (dispTracks[y].noteSelected(x)) {
+                    if ((millis() / selBlinkTime) % 2 == 0) {
+                        // turn cell off to blink
+                        trellis.setPixelColor(x, y, 0x000000);
+                    }
+                }
+            }  // end selection stuff
+            // finally, if the project is running and it is the current step,
+            // light up
+            if (run && (step == x)) {
+                trellis.setPixelColor(x, y, 0xFFFFFF);
+            }
+        }
+    }
+    trellis.show();
+}
+TrellisCallback tkeyPressed(keyEvent e) {
+    int x = e.bit.NUM % matrixWidth;
+    int y = e.bit.NUM / matrixWidth;
+    Serial.printf("E: %d, (%d, %d)\n", e.bit.NUM, x, y);
+    // i really hope this works
+    deselectAllNotesGlobal();
+
+    selTrack = (bank * matrixHeight) + y;
+    selNote = (page * matrixWidth) + x;
+    tracks[selTrack].toggleNoteOn((page * matrixWidth) + x);
+    tracks[selTrack].selectNote((page * matrixWidth) + x);
+    return 0;
+}
+void setupMatrix() {
+    for (int y = 0; y < matrixHeight; y++) {
+        for (int x = 0; x < matrixWidth; x++) {
+            Serial.printf("%d %d", x, y);
+            trellis.activateKey(x, y, SEESAW_KEYPAD_EDGE_FALLING, true);
+            trellis.activateKey(x, y, SEESAW_KEYPAD_EDGE_FALLING, true);
+            trellis.registerCallback(x, y, tkeyPressed);
         }
     }
 }
-TrellisCallback tkeyPressed(keyEvent e) {
-    int x = e.bit.NUM % matrixHeight;
-    int y = e.bit.NUM / matrixHeight;
-    // i really hope this works
-    selTrack = (bank * matrixHeight) + y;
-    tracks[selTrack].toggleNoteOn((page * matrixWidth) + x);
-    return 0;
+void processMatrix() {
+    drawMatrix();
+    trellis.read();
 }
-void processMatrix() { drawMatrix(); }
 // end trellis/matrix
-
+//--------------------------------------------------------------------------------------------------------------------------
+// Controls
+unsigned int lastPotVal = 0;
+bool lastSwitchVal = 0;
+bool potVelActive = true;  // change if the pot is being used for something else
+                           // so it doesn't change velocities
+ShaneButton chUp = ShaneButton(chUpBtn);
+ShaneButton chDn = ShaneButton(chDnBtn);
+void controls() {
+    // pot velocity adjustment
+    if (potVelActive) {
+        if (analogRead(POT) != lastPotVal) {
+            if (tracks[selTrack].noteSelected(selNote)) {
+                tracks[selTrack].notes[selNote] =
+                    0 - map(analogRead(POT), 0, 1027, 1, 127);
+                lastPotVal = analogRead(POT);
+            }
+        }
+    }
+    // Switch to stop and start seq
+    if (digitalRead(SWITCH)) {
+        if (lastSwitchVal == 0) {
+            deselectAllNotesGlobal();
+            lastSwitchVal = 1;
+            step = 0;
+        }
+        run = true;
+    } else {
+        run = false;
+    }
+    // LED to show bank
+    for (int i = 0; i < 4; i++) {
+        if (i == bank) {
+            digitalWrite(bankLeds[i], HIGH);
+        } else {
+            digitalWrite(bankLeds[i], LOW);
+        }
+    }
+    Bank Changing if (chUp.pressed()) { bankUp(); }
+    if (chDn.pressed()) {
+        bankDown();
+    }
+}
+//--------------------------------------------------------------------------------------------------------------------------
+// Sequencer
+unsigned long lastStepTime = 0;
+void seq() {
+    // first, convert tempo (in bpm) to millis between steps
+    int millisBetweenSteps = (60000 / tempo);
+    if (millis() > lastStepTime + millisBetweenSteps) {
+        lastStepTime = millis();
+        // kill previous notes
+        for (int i = 0; i < 16; i++) {
+            if (tracks[i].getNote()) {
+                usbMIDI.sendNoteOff(tracks[i].pitch, 0, tracks[i].channel);
+            }
+        }
+        if ((step + 1) < 8) {
+            step++;
+        } else {
+            step = 0;
+        }
+        // send midi for new notes
+        for (int i = 0; i < 16; i++) {
+            if (tracks[i].getNote()) {
+                usbMIDI.sendNoteOn(tracks[i].pitch, tracks[i].getNote(),
+                                   tracks[i].channel);
+            }
+        }
+    }
+}
 //--------------------------------------------------------------------------------------------------------------------------
 // Setup
 void setup() {
     pinMode(13, OUTPUT);
     Serial.begin(9600);
+    Serial.print("Start... ");
     digitalWrite(13, HIGH);
-    delay(500);
+    delay(1000);
     Serial.println("Serial OK!");
-    // setupMatrix();
+
     if (!trellis.begin()) {
         Serial.println("Critical: Matrix Failed to Initialize!!");
+        while (true) {
+            digitalWrite(13, LOW);
+            delay(100);
+            digitalWrite(13, HIGH);
+            delay(100);
+        }
     }
-    // make sure trellis is working properly
+    // make sure trellis is working properly by displaying a little
+    // animatino
+
     for (int i = 0; i < numPixels; i++) {
         trellis.setPixelColor(i, 0x000000);
         trellis.show();
@@ -209,16 +365,30 @@ void setup() {
         digitalWrite(13, LOW);
         trellis.setPixelColor(i, 0xAA00FF);
         trellis.show();
-        delay(75);
+        delay(25);
     }
-    int okmsg[20] = {0,  1,  2,  3,  6,  7,  8,  11, 12, 13,
-                     16, 19, 20, 21, 24, 25, 26, 27, 30, 31};
-    for (int i = 0; i < 20; i++) {
-        trellis.setPixelColor(okmsg[i], 0xFFFFFF);
+    // Create callbacks
+    setupMatrix();
+
+    // initialize controls
+    for (int i = 0; i < 4; i++) {
+        pinMode(bankLeds[i], OUTPUT);
+    }
+    pinMode(SWITCH, INPUT);
+
+    //
+    Serial.println("\nStarting loop");
+    for (int i = 0; i < numPixels; i++) {
+        trellis.setPixelColor(i, 0x000000);
         trellis.show();
+        delay(25);
     }
 }
 
 //--------------------------------------------------------------------------------------------------------------------------
 // Loop
-void loop() {}
+void loop() {
+    processMatrix();
+    controls();
+    if (run) seq();
+}
