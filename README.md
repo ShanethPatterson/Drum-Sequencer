@@ -14,6 +14,9 @@ There will be 16 "tracks" which can broadcast any midi note on any midi channel 
 -Note toggling and selection
 -MIDI output
 
+### Todo:
+
+
 Project Planning:
 https://l.shaneth.com/drumseqplan
 

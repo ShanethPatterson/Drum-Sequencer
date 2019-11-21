@@ -49,7 +49,7 @@ const int bankLeds[4] = {2, 3, 4, 5};
 unsigned int step = 0;
 bool run = false;
 unsigned int tempo = 120;
-unsigned int projectLength = 16;
+unsigned int projectLength = 8;
 //--------------------------------------------------------------------------------------------------------------------------
 // Classes
 class Track {
@@ -194,7 +194,8 @@ void drawMatrix() {
     if (step > matrixWidth) {
         page = step / matrixWidth;
     }
-
+    Serial.printf("X bounds: %d, %d\n", page * matrixWidth,
+                  (page * matrixWidth) + matrixWidth);
     for (int8_t y = 0; y < matrixHeight; y++) {
         for (int8_t x = page * matrixWidth;
              x < (page * matrixWidth) + matrixWidth; x++) {
@@ -324,7 +325,7 @@ void seq() {
                 usbMIDI.sendNoteOff(tracks[i].pitch, 0, tracks[i].channel);
             }
         }
-        if ((step + 1) < 8) {
+        if ((step + 1) < projectLength) {
             step++;
         } else {
             step = 0;
