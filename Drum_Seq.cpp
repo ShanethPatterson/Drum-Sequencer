@@ -31,7 +31,11 @@
 // Channel Selection
 const int bankLeds[4] = {2, 3, 4, 5};
 #define chUpBtn 35
-#define chDnBtn 34
+#define chDnBtn 31
+
+// Page Selection
+#define pgLBtn 34
+#define pgRBtn 36
 
 // Controls
 #define POT 33
@@ -49,7 +53,7 @@ const int bankLeds[4] = {2, 3, 4, 5};
 unsigned int step = 0;
 bool run = false;
 unsigned int tempo = 120;
-unsigned int projectLength = 8;
+unsigned int projectLength = 16;
 //--------------------------------------------------------------------------------------------------------------------------
 // Classes
 class Track {
@@ -162,9 +166,8 @@ Adafruit_NeoTrellis trellisArray[matrixHeight / 4][matrixWidth / 4] = {
 Adafruit_MultiTrellis trellis((Adafruit_NeoTrellis *)trellisArray,
                               (matrixHeight / 4), (matrixWidth / 4));
 TrellisCallback tkeyPressed(keyEvent e);
-int8_t lastBlinkTime, page, bank, selTrack = 15, selNote;
+int8_t lastBlinkTime, page, bank, selTrack = 15, selNote, pageOffset;
 const int8_t numPixels = matrixWidth * matrixHeight;
-
 void bankUp() {
     if (bank !=
         matrixHeight - 1) {  //-1 because 0 indexing destroys my brain and life
@@ -180,6 +183,20 @@ void bankDown() {
         selTrack = tracks[0].numTracks - 1;  // AHHHH ZERO INDEXING GOT ME AGAIN
     }
 }
+void pageLeft() {
+    if (page > 0) {
+        step -= matrixWidth;
+    } else {
+        step = projectLength - 1;
+    }
+}
+void pageRight() {
+    if (page < projectLength / matrixWidth) {
+        step += matrixWidth;
+    } else {
+        step = 0;
+    }
+}
 void drawMatrix() {
     // figure out bank before page, since loading 16 track objects is
     // significantly slower than loading 4 for the future operations
@@ -191,19 +208,17 @@ void drawMatrix() {
                                   // future operations are super quick
 
     // figure out page
-    if (step > matrixWidth) {
-        page = step / matrixWidth;
-    }
-    Serial.printf("X bounds: %d, %d\n", page * matrixWidth,
-                  (page * matrixWidth) + matrixWidth);
+
+    page = (step) / matrixWidth;
+    pageOffset = page * matrixWidth;
+
     for (int8_t y = 0; y < matrixHeight; y++) {
-        for (int8_t x = page * matrixWidth;
-             x < (page * matrixWidth) + matrixWidth; x++) {
+        for (int8_t x = 0; x < matrixWidth; x++) {
             // start by turning cell off
             trellis.setPixelColor(x, y, 0x000000);
 
             {  // drawing cell
-                if (dispTracks[y].getNote(x) != 0) {
+                if (dispTracks[y].getNote(x + pageOffset) != 0) {
                     int8_t blueVal = 0;
                     if (selTrack % matrixHeight == y) {
                         blueVal = selTrackBlueOffset;  // defined wayyy up there
@@ -212,8 +227,8 @@ void drawMatrix() {
                     trellis.setPixelColor(
                         x, y,
                         seesaw_NeoPixel::Color(
-                            dispTracks[y].getNote(x) * 2,
-                            255 - dispTracks[y].getNote(x) * 2,
+                            dispTracks[y].getNote(x + pageOffset) * 2,
+                            255 - dispTracks[y].getNote(x + pageOffset) * 2,
                             blueVal));  // velocity will bring it from green
                                         // up to red
                 } else if (selTrack % matrixHeight == y) {
@@ -221,7 +236,7 @@ void drawMatrix() {
                 }
             }
             {  // selection stuff
-                if (dispTracks[y].noteSelected(x)) {
+                if (dispTracks[y].noteSelected(x + pageOffset)) {
                     if ((millis() / selBlinkTime) % 2 == 0) {
                         // turn cell off to blink
                         trellis.setPixelColor(x, y, 0x000000);
@@ -230,7 +245,7 @@ void drawMatrix() {
             }  // end selection stuff
             // finally, if the project is running and it is the current step,
             // light up
-            if (run && (step == x)) {
+            if (run && (step == x + pageOffset)) {
                 trellis.setPixelColor(x, y, 0xFFFFFF);
             }
         }
@@ -238,16 +253,16 @@ void drawMatrix() {
     trellis.show();
 }
 TrellisCallback tkeyPressed(keyEvent e) {
-    int x = e.bit.NUM % matrixWidth;
+    int x = (e.bit.NUM % matrixWidth) + pageOffset;
     int y = e.bit.NUM / matrixWidth;
     Serial.printf("E: %d, (%d, %d)\n", e.bit.NUM, x, y);
     // i really hope this works
     deselectAllNotesGlobal();
 
     selTrack = (bank * matrixHeight) + y;
-    selNote = (page * matrixWidth) + x;
-    tracks[selTrack].toggleNoteOn((page * matrixWidth) + x);
-    tracks[selTrack].selectNote((page * matrixWidth) + x);
+    selNote = x;
+    tracks[selTrack].toggleNoteOn(x);
+    tracks[selTrack].selectNote(x);
     return 0;
 }
 void setupMatrix() {
@@ -273,6 +288,8 @@ bool potVelActive = true;  // change if the pot is being used for something else
                            // so it doesn't change velocities
 ShaneButton chUp = ShaneButton(chUpBtn);
 ShaneButton chDn = ShaneButton(chDnBtn);
+ShaneButton pgL = ShaneButton(pgLBtn);
+ShaneButton pgR = ShaneButton(pgRBtn);
 void controls() {
     // pot velocity adjustment
     if (potVelActive) {
@@ -303,12 +320,21 @@ void controls() {
             digitalWrite(bankLeds[i], LOW);
         }
     }
+    // The following code controls the matrix, so the functions below can be
+    // found in the matrix section
     // Bank Changing
     if (chUp.pressed()) {
         bankUp();
     }
     if (chDn.pressed()) {
         bankDown();
+    }
+    // Page Changing
+    if (pgL.pressed()) {
+        pageLeft();
+    }
+    if (pgR.pressed()) {
+        pageRight();
     }
 }
 //--------------------------------------------------------------------------------------------------------------------------

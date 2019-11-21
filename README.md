@@ -16,7 +16,6 @@ There will be 16 "tracks" which can broadcast any midi note on any midi channel 
 
 ### Todo:
 
-
 Project Planning:
 https://l.shaneth.com/drumseqplan
 
