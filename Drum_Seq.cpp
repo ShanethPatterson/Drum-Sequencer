@@ -177,7 +177,7 @@ void bankDown() {
     if (bank != 1) {
         selTrack -= matrixHeight;
     } else {
-        selTrack = tracks[0].numTracks;
+        selTrack = tracks[0].numTracks - 1;  // AHHHH ZERO INDEXING GOT ME AGAIN
     }
 }
 void drawMatrix() {
