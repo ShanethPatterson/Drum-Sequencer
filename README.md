@@ -23,6 +23,7 @@ There will be 16 "tracks" which can broadcast any midi note on any midi channel 
 Make Midi DAW Sync Work.
 Invent some way of changing project length, tempo, and time signature. Consider adding buttons and doing something fancy with the trellis array.
 For project length, could just light up a number of the trellis pixels where 1 pixel/step giving us 1-32 steps. Time signature could be represented the same way. Tempo may require some other control. +/- buttons?
+Audio mode!
 
 Shane Patterson
 shaneth.com
