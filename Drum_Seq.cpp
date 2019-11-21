@@ -21,6 +21,7 @@
     64  // only god knows what will actually happen if this variable changes.
         // Leaving it at 64 for now.
 #define STARTINGVELOCITY 75
+#define MIDISYNCENABLED 0
 
 // Menu System
 #define menuLBtn 0
@@ -346,10 +347,10 @@ void controls() {
     // found in the matrix section
     // Bank Changing
     if (chUp.pressed()) {
-        bankUp();
+        bankDown();  // these are purposefully flipped
     }
     if (chDn.pressed()) {
-        bankDown();
+        bankUp();  // these are purposefully flipped
     }
     // Page Changing
     if (pgL.pressed()) {
@@ -361,32 +362,68 @@ void controls() {
 }
 //--------------------------------------------------------------------------------------------------------------------------
 // Sequencer
+int midiClockMod = 6;
+int midiClockStep = 0;
+bool midiClockActive = false;
 unsigned long lastStepTime = 0;
+void beforeStep() {
+    // kill previous notes
+    for (int i = 0; i < 16; i++) {
+        usbMIDI.sendNoteOff(tracks[i].pitch, 0, tracks[i].channel);
+    }
+}
+void afterStep() {
+    // send midi for new notes
+    for (int i = 0; i < 16; i++) {
+        if (tracks[i].getNote()) {
+            usbMIDI.sendNoteOn(tracks[i].pitch, tracks[i].getNote(),
+                               tracks[i].channel);
+        }
+    }
+}
+// MIDI CLOCKING
+void RealTimeSystem(byte realtimebyte) {
+    if (realtimebyte == 248 && run) {  // midi clock tick
+        midiClockActive = true;
+
+        midiClockStep++;
+        Serial.println(midiClockStep);
+        if (midiClockStep >= midiClockMod) {
+            beforeStep();
+            midiClockStep = 0;
+
+            if ((step + 1) < projectLength) {
+                step++;
+            } else {
+                step = 0;
+            }
+            afterStep();
+        }
+    }
+    if (realtimebyte = 250) {  // midi for start
+                               //  midiClockStep = 0;
+    }
+    if (realtimebyte == 252) {  // midi for stop
+        midiClockActive = false;
+        midiClockStep = 0;
+    }
+}
 void seq() {
+    // Self Clock
     // first, convert tempo (in bpm) to millis between steps
     int millisBetweenSteps = (60000 / tempo);
-    if (millis() > lastStepTime + millisBetweenSteps) {
+    if (millis() > lastStepTime + millisBetweenSteps && !midiClockActive) {
         lastStepTime = millis();
-        // kill previous notes
-        for (int i = 0; i < 16; i++) {
-            if (tracks[i].getNote()) {
-                usbMIDI.sendNoteOff(tracks[i].pitch, 0, tracks[i].channel);
-            }
-        }
+        beforeStep();
         if ((step + 1) < projectLength) {
             step++;
         } else {
             step = 0;
         }
-        // send midi for new notes
-        for (int i = 0; i < 16; i++) {
-            if (tracks[i].getNote()) {
-                usbMIDI.sendNoteOn(tracks[i].pitch, tracks[i].getNote(),
-                                   tracks[i].channel);
-            }
-        }
+        afterStep();
     }
 }
+
 //--------------------------------------------------------------------------------------------------------------------------
 // Setup
 
@@ -457,6 +494,9 @@ void setup() {
     pinMode(SWITCH, INPUT);
 
     //
+    if (MIDISYNCENABLED) {
+        usbMIDI.setHandleRealTimeSystem(RealTimeSystem);
+    }
     Serial.println("\nStarting loop");
     for (int i = 0; i < numPixels; i++) {
         trellis.setPixelColor(i, 0x000000);
@@ -470,5 +510,10 @@ void setup() {
 void loop() {
     processMatrix();
     controls();
-    if (run) seq();
+    if (run) {
+        seq();
+    }
+    if (MIDISYNCENABLED) {
+        usbMIDI.read();
+    }
 }
