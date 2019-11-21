@@ -13,6 +13,7 @@
 //#include <Arduino.h>
 //#include <algorithm>
 //#include <vector>
+#include <EEPROM.h>
 
 //--------------------------------------------------------------------------------------------------------------------------
 // Constants
@@ -29,13 +30,13 @@
 #define display 0
 
 // Channel Selection
-const int bankLeds[4] = {2, 3, 4, 5};
-#define chUpBtn 35
-#define chDnBtn 31
+const int bankLeds[4] = {5, 4, 3, 2};
+#define chUpBtn 31
+#define chDnBtn 35
 
 // Page Selection
-#define pgLBtn 34
-#define pgRBtn 36
+#define pgLBtn 36
+#define pgRBtn 34
 
 // Controls
 #define POT 33
@@ -52,8 +53,9 @@ const int bankLeds[4] = {2, 3, 4, 5};
 // Global Variables
 unsigned int step = 0;
 bool run = false;
-unsigned int tempo = 120;
+unsigned int tempo = 165;
 unsigned int projectLength = 16;
+unsigned int timeSig = 4;
 //--------------------------------------------------------------------------------------------------------------------------
 // Classes
 class Track {
@@ -89,12 +91,30 @@ class Track {
         } else {
             notes[n] = 0;
         }
+        writeNoteToEeprom(n);
     }
     void deselectAllNotes() {
         for (int i = 0; i < MAXLENGTH; i++) {
             notes[i] =
                 abs(notes[i]);  // using sign flip to indicate selected
                                 // was a good choice for this very reason.
+        }
+    }
+    void setVelocity(int n, int vel) {
+        notes[n] = vel;
+        writeNoteToEeprom(n);
+    }
+    void writeNoteToEeprom(int n) {
+        int addr = (id * MAXLENGTH) + n;
+        Serial.printf("Writing value %d to EEPROM @addr %d\n", addr, n);
+        EEPROM.write(addr, notes[n]);
+    }
+    void readTrackFromEeprom() {
+        int addr = (id * MAXLENGTH);
+        for (unsigned int i = 0; i < projectLength; i++) {
+            notes[i] = EEPROM.read(addr + i);
+            Serial.printf("Reading value %d from EEPROM @addr %d\n", addr + i,
+                          notes[i]);
         }
     }
 };
@@ -184,14 +204,15 @@ void bankDown() {
     }
 }
 void pageLeft() {
-    if (page > 0) {
+    Serial.println("Left");
+    if (step > matrixWidth) {
         step -= matrixWidth;
     } else {
         step = projectLength - 1;
     }
 }
 void pageRight() {
-    if (page < projectLength / matrixWidth) {
+    if (step < (projectLength - matrixWidth)) {
         step += matrixWidth;
     } else {
         step = 0;
@@ -263,6 +284,7 @@ TrellisCallback tkeyPressed(keyEvent e) {
     selNote = x;
     tracks[selTrack].toggleNoteOn(x);
     tracks[selTrack].selectNote(x);
+    usbMIDI.sendNoteOn(tracks[selTrack].pitch, 80, tracks[selTrack].channel);
     return 0;
 }
 void setupMatrix() {
@@ -270,7 +292,7 @@ void setupMatrix() {
         for (int x = 0; x < matrixWidth; x++) {
             Serial.printf("%d %d", x, y);
             trellis.activateKey(x, y, SEESAW_KEYPAD_EDGE_FALLING, true);
-            trellis.activateKey(x, y, SEESAW_KEYPAD_EDGE_FALLING, true);
+            // trellis.activateKey(x, y, SEESAW_KEYPAD_EDGE_FALLING, true);
             trellis.registerCallback(x, y, tkeyPressed);
         }
     }
@@ -295,8 +317,8 @@ void controls() {
     if (potVelActive) {
         if (analogRead(POT) != lastPotVal) {
             if (tracks[selTrack].noteSelected(selNote)) {
-                tracks[selTrack].notes[selNote] =
-                    0 - map(analogRead(POT), 0, 1027, 1, 127);
+                tracks[selTrack].setVelocity(
+                    selNote, 0 - map(analogRead(POT), 0, 1027, 1, 127));
                 lastPotVal = analogRead(POT);
             }
         }
@@ -367,6 +389,7 @@ void seq() {
 }
 //--------------------------------------------------------------------------------------------------------------------------
 // Setup
+
 void setup() {
     pinMode(13, OUTPUT);
     Serial.begin(9600);
@@ -393,10 +416,37 @@ void setup() {
     }
     for (int i = 0; i < numPixels; i++) {
         digitalWrite(13, LOW);
-        trellis.setPixelColor(i, 0xAA00FF);
+        trellis.setPixelColor(i, 0x100035);
         trellis.show();
         delay(25);
     }
+
+    // Load from EEPROM prompt
+    bool waitFlag = true;
+    int Lchar[7] = {0, 8, 16, 24, 25, 26, 27};
+    for (int i = 0; i < 7; i++) {
+        trellis.setPixelColor(Lchar[i], 0xFFFFFF);
+    }
+
+    trellis.show();
+
+    while (waitFlag) {
+        if (chDn.pressed() || pgL.pressed()) {
+            Serial.println("Clearing EEPROM. Starting from scratch.");
+            for (int i = 0; i < EEPROM.length(); i++) {
+                EEPROM.write(i, 0);
+            }
+            waitFlag = false;
+        }
+        if (chUp.pressed() || pgR.pressed()) {
+            Serial.println("Reading from EEPROM.");
+            for (int i = 0; i < 16; i++) {
+                tracks[i].readTrackFromEeprom();
+            }
+            waitFlag = false;
+        }
+    }
+
     // Create callbacks
     setupMatrix();
 
