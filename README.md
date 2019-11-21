@@ -6,7 +6,6 @@ Still in planning stages. Tentatively, the drum sequencer will act strictly as a
 The sequencer is controlled by a 4 tall x 8 wide matrix of RGB Leds with buttons reffered to as a NeoTrellis.
 There are 16 "tracks" which can broadcast any midi note on any midi channel over USBMidi.
 
-
 ### WORKING:
 
 - [x]16 steps
