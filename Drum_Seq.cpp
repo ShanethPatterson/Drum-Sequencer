@@ -30,8 +30,8 @@
 
 // Channel Selection
 const int bankLeds[4] = {2, 3, 4, 5};
-#define chUpBtn 34
-#define chDnBtn 35
+#define chUpBtn 35
+#define chDnBtn 34
 
 // Controls
 #define POT 33
@@ -174,7 +174,7 @@ void bankUp() {
     }
 }
 void bankDown() {
-    if (bank != 1) {
+    if (bank != 0) {
         selTrack -= matrixHeight;
     } else {
         selTrack = tracks[0].numTracks - 1;  // AHHHH ZERO INDEXING GOT ME AGAIN
