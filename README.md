@@ -8,11 +8,15 @@ There will be 16 "tracks" which can broadcast any midi note on any midi channel 
 
 ### WORKING:
 
--8 steps
+-16 steps
 -all 16 tracks with the two buttons to bank up or down (with bounds checking of course)
 -Velocity control
 -Note toggling and selection
 -MIDI output
+-Page change buttons
+-Run/Stop Switch
+-GM Mapping
+-Weird upside-down y axis hacks since I didn't think that NeoPixel counts row 0 as the top row, but I want the lowest midi notes on the bottom.
 
 ### Todo:
 
