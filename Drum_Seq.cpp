@@ -197,8 +197,8 @@ class Track {
                       // setting pitches automatically
         pitch = 36 + 30 - (id * 2);  // to follow GM drum mapping
         channel = 1;
-        getDrumByID(id)->frequency(pitch + (id * 2));
-        getDrumByID(id)->length(66 - (16 - id));
+        getDrumByID(id)->frequency((pitch + (id * 2)) * 2);
+        getDrumByID(id)->length(100);
     }
     int getNote(int n) { return abs(notes[n]); }
     int getNote() { return abs(notes[step]); }
@@ -489,11 +489,11 @@ void controls() {
     // tempo changing
     if (tempoDown.pressed()) {
         tempo--;
-        EEPROM.write(1000, tempo);
+        EEPROM.write(4095, tempo);
     }
     if (tempoUp.pressed()) {
         tempo++;
-        EEPROM.write(1000, tempo);
+        EEPROM.write(4095, tempo);
     }
 }
 //--------------------------------------------------------------------------------------------------------------------------
@@ -516,7 +516,7 @@ void afterStep() {
                                tracks[i].channel);
             playAudioDrum(i);
         }
-        }
+    }
 }
 // MIDI CLOCKING
 void RealTimeSystem(byte realtimebyte) {
@@ -617,7 +617,7 @@ void setup() {
             for (int i = 0; i < 16; i++) {
                 tracks[i].readTrackFromEeprom();
             }
-            tempo = EEPROM.read(1000);
+            tempo = EEPROM.read(4095);
             waitFlag = false;
         }
     }

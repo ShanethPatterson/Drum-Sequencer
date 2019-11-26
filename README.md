@@ -35,4 +35,4 @@ There are 16 "tracks" which can broadcast any midi note on any midi channel over
 ###EEPROM MAPPING:
 
 - Address 0-960: Note velocites
-- Address 1000: Tempo
+- Address 4095: Tempo
