@@ -59,6 +59,126 @@ bool run = false;
 unsigned int tempo = 165;
 unsigned int projectLength = 16;
 unsigned int timeSig = 4;
+
+#include <Audio.h>
+#include <SD.h>
+#include <SPI.h>
+#include <SerialFlash.h>
+#include <Wire.h>
+
+//--------------------------------------------------------------------------------------------------------------------------
+// Audio
+// GUItool: begin automatically generated code
+#include <Audio.h>
+#include <SD.h>
+#include <SPI.h>
+#include <SerialFlash.h>
+#include <Wire.h>
+
+// GUItool: begin automatically generated code
+AudioSynthSimpleDrum drum1;   // xy=517,252
+AudioSynthSimpleDrum drum2;   // xy=518,286
+AudioSynthSimpleDrum drum3;   // xy=535,324
+AudioSynthSimpleDrum drum4;   // xy=563,375
+AudioSynthSimpleDrum drum5;   // xy=566,425
+AudioSynthSimpleDrum drum7;   // xy=568,509
+AudioSynthSimpleDrum drum6;   // xy=577,470
+AudioSynthSimpleDrum drum9;   // xy=581,628
+AudioSynthSimpleDrum drum10;  // xy=582,662
+AudioSynthSimpleDrum drum8;   // xy=592,544
+AudioSynthSimpleDrum drum11;  // xy=599,700
+AudioSynthSimpleDrum drum12;  // xy=627,751
+AudioSynthSimpleDrum drum13;  // xy=630,801
+AudioSynthSimpleDrum drum15;  // xy=632,885
+AudioSynthSimpleDrum drum14;  // xy=641,846
+AudioSynthSimpleDrum drum16;  // xy=656,920
+AudioMixer4 mixer1;           // xy=774,271
+AudioMixer4 mixer2;           // xy=775,430
+AudioMixer4 mixer4;           // xy=838,647
+AudioMixer4 mixer5;           // xy=839,806
+AudioMixer4 mixer3;           // xy=1071,483
+AudioOutputAnalog dac1;       // xy=1262,486
+AudioConnection patchCord1(drum1, 0, mixer1, 0);
+AudioConnection patchCord2(drum2, 0, mixer1, 1);
+AudioConnection patchCord3(drum3, 0, mixer1, 2);
+AudioConnection patchCord4(drum4, 0, mixer1, 3);
+AudioConnection patchCord5(drum5, 0, mixer2, 0);
+AudioConnection patchCord6(drum7, 0, mixer2, 2);
+AudioConnection patchCord7(drum6, 0, mixer2, 1);
+AudioConnection patchCord8(drum9, 0, mixer4, 0);
+AudioConnection patchCord9(drum10, 0, mixer4, 1);
+AudioConnection patchCord10(drum8, 0, mixer2, 3);
+AudioConnection patchCord11(drum11, 0, mixer4, 2);
+AudioConnection patchCord12(drum12, 0, mixer4, 3);
+AudioConnection patchCord13(drum13, 0, mixer5, 0);
+AudioConnection patchCord14(drum15, 0, mixer5, 2);
+AudioConnection patchCord15(drum14, 0, mixer5, 1);
+AudioConnection patchCord16(drum16, 0, mixer5, 3);
+AudioConnection patchCord17(mixer1, 0, mixer3, 0);
+AudioConnection patchCord18(mixer2, 0, mixer3, 1);
+AudioConnection patchCord19(mixer4, 0, mixer3, 2);
+AudioConnection patchCord20(mixer5, 0, mixer3, 3);
+AudioConnection patchCord21(mixer3, dac1);
+// GUItool: end automatically generated code
+AudioSynthSimpleDrum *getDrumByID(int n) {
+    AudioSynthSimpleDrum *nDrum;
+    switch (n) {
+        case 0:
+            nDrum = &drum1;
+            break;
+        case 1:
+            nDrum = &drum2;
+            break;
+        case 2:
+            nDrum = &drum3;
+            break;
+        case 3:
+            nDrum = &drum4;
+            break;
+        case 4:
+            nDrum = &drum5;
+            break;
+        case 5:
+            nDrum = &drum5;
+            break;
+        case 6:
+            nDrum = &drum7;
+            break;
+        case 7:
+            nDrum = &drum8;
+            break;
+        case 8:
+            nDrum = &drum9;
+            break;
+        case 9:
+            nDrum = &drum10;
+            break;
+        case 10:
+            nDrum = &drum11;
+            break;
+        case 11:
+            nDrum = &drum12;
+            break;
+        case 12:
+            nDrum = &drum13;
+            break;
+        case 13:
+            nDrum = &drum14;
+            break;
+        case 14:
+            nDrum = &drum15;
+            break;
+        case 15:
+            nDrum = &drum16;
+            break;
+        default:
+            Serial.println("Error in drum selection switch");
+            break;
+    }  // end switch statement
+    return nDrum;
+}
+void playAudioDrum(int n) { getDrumByID(n)->noteOn(); }
+
 //--------------------------------------------------------------------------------------------------------------------------
 // Classes
 class Track {
@@ -77,6 +197,8 @@ class Track {
                       // setting pitches automatically
         pitch = 36 + 30 - (id * 2);  // to follow GM drum mapping
         channel = 1;
+        getDrumByID(id)->frequency(pitch + (id * 2));
+        getDrumByID(id)->length(66 - (16 - id));
     }
     int getNote(int n) { return abs(notes[n]); }
     int getNote() { return abs(notes[step]); }
@@ -367,9 +489,11 @@ void controls() {
     // tempo changing
     if (tempoDown.pressed()) {
         tempo--;
+        EEPROM.write(1000, tempo);
     }
     if (tempoUp.pressed()) {
         tempo++;
+        EEPROM.write(1000, tempo);
     }
 }
 //--------------------------------------------------------------------------------------------------------------------------
@@ -385,13 +509,14 @@ void beforeStep() {
     }
 }
 void afterStep() {
-    // send midi for new notes
+    // send midi and trigger audio for new notes
     for (int i = 0; i < 16; i++) {
         if (tracks[i].getNote()) {
             usbMIDI.sendNoteOn(tracks[i].pitch, tracks[i].getNote(),
                                tracks[i].channel);
+            playAudioDrum(i);
         }
-    }
+        }
 }
 // MIDI CLOCKING
 void RealTimeSystem(byte realtimebyte) {
@@ -412,8 +537,8 @@ void RealTimeSystem(byte realtimebyte) {
             afterStep();
         }
     }
-    if (realtimebyte = 250) {  // midi for start
-                               //  midiClockStep = 0;
+    if (realtimebyte == 250) {  // midi for start
+                                //  midiClockStep = 0;
     }
     if (realtimebyte == 252) {  // midi for stop
         midiClockActive = false;
@@ -492,6 +617,7 @@ void setup() {
             for (int i = 0; i < 16; i++) {
                 tracks[i].readTrackFromEeprom();
             }
+            tempo = EEPROM.read(1000);
             waitFlag = false;
         }
     }
@@ -515,6 +641,8 @@ void setup() {
         trellis.show();
         delay(25);
     }
+    // audio stuff
+    AudioMemory(12);
 }
 
 //--------------------------------------------------------------------------------------------------------------------------
