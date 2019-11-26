@@ -42,13 +42,15 @@ const int bankLeds[4] = {5, 4, 3, 2};
 // Controls
 #define POT 33
 #define SWITCH 32
+#define TMPDN 37
+#define TMPUP 30
 
 // Matrix
 #define matrixHeight 4
 #define matrixWidth 8
 #define selBlinkTime 200
-#define selTrackBlueOffset 10
-#define selTrackOffColor 0x000020
+#define selTrackBlueOffset 0
+#define selTrackOffColor 0x101010
 
 //--------------------------------------------------------------------------------------------------------------------------
 // Global Variables
@@ -313,6 +315,9 @@ ShaneButton chUp = ShaneButton(chUpBtn);
 ShaneButton chDn = ShaneButton(chDnBtn);
 ShaneButton pgL = ShaneButton(pgLBtn);
 ShaneButton pgR = ShaneButton(pgRBtn);
+ShaneButton tempoDown = ShaneButton(TMPDN);
+ShaneButton tempoUp = ShaneButton(TMPUP);
+
 void controls() {
     // pot velocity adjustment
     if (potVelActive) {
@@ -358,6 +363,13 @@ void controls() {
     }
     if (pgR.pressed()) {
         pageRight();
+    }
+    // tempo changing
+    if (tempoDown.pressed()) {
+        tempo--;
+    }
+    if (tempoUp.pressed()) {
+        tempo++;
     }
 }
 //--------------------------------------------------------------------------------------------------------------------------
