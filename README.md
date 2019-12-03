@@ -36,3 +36,4 @@ There are 16 "tracks" which can broadcast any midi note on any midi channel over
 
 - Address 0-960: Note velocites
 - Address 4095: Tempo
+- Address 4094: Length

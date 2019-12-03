@@ -44,6 +44,7 @@ const int bankLeds[4] = {5, 4, 3, 2};
 #define SWITCH 32
 #define TMPDN 37
 #define TMPUP 30
+#define LENBTN 0  // TODO: DEFINE ME!
 
 // Matrix
 #define matrixHeight 4
@@ -57,7 +58,7 @@ const int bankLeds[4] = {5, 4, 3, 2};
 unsigned int step = 0;
 bool run = false;
 unsigned int tempo = 165;
-unsigned int projectLength = 16;
+unsigned int projectLength = 8;
 unsigned int timeSig = 4;
 
 #include <Audio.h>
@@ -427,6 +428,8 @@ void processMatrix() {
     trellis.read();
 }
 // end trellis/matrix
+
+
 //--------------------------------------------------------------------------------------------------------------------------
 // Controls
 unsigned int lastPotVal = 0;
@@ -439,6 +442,9 @@ ShaneButton pgL = ShaneButton(pgLBtn);
 ShaneButton pgR = ShaneButton(pgRBtn);
 ShaneButton tempoDown = ShaneButton(TMPDN);
 ShaneButton tempoUp = ShaneButton(TMPUP);
+ShaneButton projectLengthButton = ShaneButton(LENBTN);
+void changeLength(); //For some reason I get an undefined error if I don't have this. I think because I'm doing all my offline compiling without the Teensy with a different C++ compiler. If I'm feeling fun in the future I'll try taking this out when hooked up the hardware.
+
 
 void controls() {
     // pot velocity adjustment
@@ -488,14 +494,48 @@ void controls() {
     }
     // tempo changing
     if (tempoDown.pressed()) {
-        tempo--;
+        tempo = -5;
         EEPROM.write(4095, tempo);
     }
     if (tempoUp.pressed()) {
-        tempo++;
+        tempo += 5;
         EEPROM.write(4095, tempo);
     }
+    if(projectLengthButton.pressed()){
+        changeLength();
+        EEPROM.write(4094, projectLength);
+    }
 }
+//--------------------------------------------------------------------------------------------------------------------------
+// Change Project Length
+void changeLength() {
+    // THIS FUNCTION HOLDS CONTROL UNTIL COMPLETE
+    bool flag = false;
+    for (int i = 0; i < numPixels; i++) {
+        trellis.setPixelColor(i, 0x000000);
+    }
+    trellis.show();
+    while (!flag) {
+        for (int i = 0; i < projectLength; i++) {
+            trellis.setPixelColor(i, 0xFFFFFF);
+        }
+        if (chUp.pressed() || pgR.pressed()) {
+            if (projectLength < MAXLENGTH) {
+                projectLength++;
+            }
+        }
+        if (chDn.pressed() || pgL.pressed()) {
+            if (projectLength > 2) {
+                projectLength--;
+            }
+        }
+        if (projectLengthButton.pressed()) {
+            flag = true;
+        }
+    }
+}
+
+
 //--------------------------------------------------------------------------------------------------------------------------
 // Sequencer
 int midiClockMod = 6;
@@ -617,7 +657,9 @@ void setup() {
             for (int i = 0; i < 16; i++) {
                 tracks[i].readTrackFromEeprom();
             }
-            tempo = EEPROM.read(4095);
+            tempo = EEPROM.read(4095); 
+            //TODO: Figure out why this is glitchy?
+            projectLength = EEPROM.read(4094);
             waitFlag = false;
         }
     }
