@@ -44,7 +44,7 @@ const int bankLeds[4] = {5, 4, 3, 2};
 #define SWITCH 32
 #define TMPDN 37
 #define TMPUP 30
-#define LENBTN 0  // TODO: DEFINE ME!
+#define LENBTN 29  // TODO: DEFINE ME!
 
 // Matrix
 #define matrixHeight 4
@@ -198,7 +198,7 @@ class Track {
                       // setting pitches automatically
         pitch = 36 + 30 - (id * 2);  // to follow GM drum mapping
         channel = 1;
-        getDrumByID(id)->frequency((pitch + (id * 2)) * 2);
+        getDrumByID(id)->frequency((pitch + (id * 20)) * 2);
         getDrumByID(id)->length(100);
     }
     int getNote(int n) { return abs(notes[n]); }
@@ -429,7 +429,6 @@ void processMatrix() {
 }
 // end trellis/matrix
 
-
 //--------------------------------------------------------------------------------------------------------------------------
 // Controls
 unsigned int lastPotVal = 0;
@@ -443,8 +442,11 @@ ShaneButton pgR = ShaneButton(pgRBtn);
 ShaneButton tempoDown = ShaneButton(TMPDN);
 ShaneButton tempoUp = ShaneButton(TMPUP);
 ShaneButton projectLengthButton = ShaneButton(LENBTN);
-void changeLength(); //For some reason I get an undefined error if I don't have this. I think because I'm doing all my offline compiling without the Teensy with a different C++ compiler. If I'm feeling fun in the future I'll try taking this out when hooked up the hardware.
-
+void changeLength();  // For some reason I get an undefined error if I don't
+                      // have this. I think because I'm doing all my offline
+                      // compiling without the Teensy with a different C++
+                      // compiler. If I'm feeling fun in the future I'll try
+                      // taking this out when hooked up the hardware.
 
 void controls() {
     // pot velocity adjustment
@@ -494,14 +496,15 @@ void controls() {
     }
     // tempo changing
     if (tempoDown.pressed()) {
-        tempo = -5;
-        EEPROM.write(4095, tempo);
+        tempo = tempo - 5;
     }
     if (tempoUp.pressed()) {
         tempo += 5;
-        EEPROM.write(4095, tempo);
     }
-    if(projectLengthButton.pressed()){
+    // EEPROM.write(4095, tempo);  // just write tempo on every loop because
+    // doing
+    // it with the controls was unreliable af
+    if (projectLengthButton.pressed()) {
         changeLength();
         EEPROM.write(4094, projectLength);
     }
@@ -511,14 +514,15 @@ void controls() {
 void changeLength() {
     // THIS FUNCTION HOLDS CONTROL UNTIL COMPLETE
     bool flag = false;
-    for (int i = 0; i < numPixels; i++) {
-        trellis.setPixelColor(i, 0x000000);
-    }
-    trellis.show();
+
     while (!flag) {
+        for (int i = 0; i < numPixels; i++) {
+            trellis.setPixelColor(i, 0x000000);
+        }
         for (int i = 0; i < projectLength; i++) {
             trellis.setPixelColor(i, 0xFFFFFF);
         }
+        trellis.show();
         if (chUp.pressed() || pgR.pressed()) {
             if (projectLength < MAXLENGTH) {
                 projectLength++;
@@ -535,7 +539,6 @@ void changeLength() {
     }
 }
 
-
 //--------------------------------------------------------------------------------------------------------------------------
 // Sequencer
 int midiClockMod = 6;
@@ -545,7 +548,7 @@ unsigned long lastStepTime = 0;
 void beforeStep() {
     // kill previous notes
     for (int i = 0; i < 16; i++) {
-        usbMIDI.sendNoteOff(tracks[i].pitch, 0, tracks[i].channel);
+        usbMIDI.sendNoteOff(tracks[i].pitch, 1, tracks[i].channel);
     }
 }
 void afterStep() {
@@ -657,9 +660,11 @@ void setup() {
             for (int i = 0; i < 16; i++) {
                 tracks[i].readTrackFromEeprom();
             }
-            tempo = EEPROM.read(4095); 
-            //TODO: Figure out why this is glitchy?
-            projectLength = EEPROM.read(4094);
+            // tempo = EEPROM.read(4095); for some reason i cannot understand or
+            // fathom, this is broek
+            // TODO: Figure out why this is glitchy?
+            // projectLength = EEPROM.read(4094); //TODO: fix this too
+            projectLength = 8;
             waitFlag = false;
         }
     }

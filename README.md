@@ -25,8 +25,8 @@ There are 16 "tracks" which can broadcast any midi note on any midi channel over
 ### Todo:
 
 - [ ] EEPROM clear confirmation: make whole array flash red and user must press left/down again to clear EEPROM, otherwise cancel clear and load.
-  - [ ] Make Midi DAW Sync Work.
-- [ ] Audio mode!
+  - [ ] Make Midi DAW Sync Work. Some code is in place, however it is not functional yet. It is possible all the midi clock messages from the DAW are overloading the teensy and without writing a scheduling algorithm, will always cause erratic behavior.
+- [ ] Audio mode! There is some code in place to create audio, however it is not functional yet.
 
 **Shane Patterson**
 [shaneth.com](http://shaneth.com)
